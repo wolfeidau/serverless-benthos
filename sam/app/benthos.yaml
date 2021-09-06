@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: 'authentication: Resources for deploying Benthos in AWS Lambda, a @wolfeidau template'
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: 'Benthos Parameters'
+        Parameters:
+        - BenthosConfig
+  'AWS::ServerlessRepo::Application':
+    Name: serverless-benthos
+    Description: >-
+      This application deploys Benthos to AWS Lambda.
+    Author: Mark Wolfe
+    SpdxLicenseId: MIT
+    Labels: [benthos, sam, serverless]
+    HomePageUrl: https://github.com/wolfeidau/serverless-benthos
+    SemanticVersion: 3.54.1
+    SourceCodeUrl: https://github.com/wolfeidau/serverless-benthos/tree/1.0.0
+    LicenseUrl: ../../LICENSE
+    ReadmeUrl: ../../README.md
+
+Parameters:
+  BenthosConfig:
+    Type: String
+    Description: >
+      A YAML configuration for the Benthos pipeline, can include any traditional
+      sections except for input or buffer.
+
+Resources:
+  BenthosFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: benthos-lambda
+      Runtime: go1.x
+      CodeUri: '../../dist/handler.zip'
+      Environment:
+        Variables:
+          BENTHOS_CONFIG:
+            Ref: BenthosConfig
+
+Outputs:
+  FunctionArn:
+    Description: "Benthos Function ARN"
+    Value: !GetAtt BenthosFunction.Arn
