@@ -50,4 +50,5 @@ deployci:
 	@aws cloudformation deploy \
 		--template-file sam/ci/template.yaml \
 		--capabilities CAPABILITY_NAMED_IAM CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-		--stack-name $(APP_NAME)-ci
+		--stack-name $(APP_NAME)-ci \
+		--parameter-overrides GitHubRepo=$(APP_NAME) BuildSpecFilePath=buildspec-pipeline.yaml PublishToSAR=true
