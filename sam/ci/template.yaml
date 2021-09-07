@@ -1,5 +1,5 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Transform: 'AWS::Serverless-2016-10-31'
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: "AWS::Serverless-2016-10-31"
 Description: >-
   This template sets up CD pipeline for serverless-benthos
 
@@ -37,15 +37,15 @@ Parameters:
       - GitHub
   GitHubOAuthTokenSecretId:
     Type: String
-    Default: 'wolfeidau/GitHubOAuthToken'
+    Default: "wolfeidau/GitHubOAuthToken"
   GitHubOwner:
     Description: GitHub username owning the repo
     Type: String
-    Default: 'wolfeidau'
+    Default: "wolfeidau"
   GitHubRepo:
     Description: GitHub repo name
     Type: String
-    Default: 'serverless-benthos'
+    Default: "serverless-benthos"
   GitHubBranch:
     Description: GitHub repo branch name. It defaults to master if not specified.
     Type: String
@@ -53,34 +53,34 @@ Parameters:
   DeployParameterOverrides:
     Description: Parameter overrides for the deploy stage
     Type: String
-    Default: '{}'
+    Default: "{}"
   DeployStackName:
     Description: The stack name for the deploy stage
     Type: String
-    Default: ''
+    Default: ""
   DeployRoleName:
     Description: >-
       The IAM role name to deploy the CloudFormation stack. This role needs to be configured to allow
       cloudformation.amazonaws.com to assume it. Deploy stage will not be added if not specified.
     Type: String
-    Default: ''
+    Default: ""
   IntegTestRoleName:
     Description: >-
       The IAM role name to deploy a test stack and run integration tests. This role needs to be configured
       to allow codebuild.amazonaws.com and cloudformation.amazonaws.com to assume it. Test stage will not
       be added if not specified.
     Type: String
-    Default: ''
+    Default: ""
   BuildSpecFilePath:
     Description: >-
       Relative BuildSpec file path for build stage. For more information, see https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html
     Type: String
-    Default: 'buildspec-pipeline.yaml'
+    Default: "buildspec-pipeline.yaml"
   IntegTestBuildSpecFilePath:
     Description: >-
       Relative BuildSpec file path for test stage. For more information, see https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html
     Type: String
-    Default: 'buildspec-integ-test.yaml'
+    Default: "buildspec-integ-test.yaml"
   PublishToSAR:
     Description: Whether to publish the application to AWS Serverless Application Repository
     Type: String
@@ -90,54 +90,68 @@ Parameters:
     Default: false
 
 Conditions:
-  HasTestStage:
-    !Not [!Equals [!Ref IntegTestRoleName, '']]
-  HasDeployStage:
-    !Not [!Equals [!Ref DeployRoleName, '']]
-  HasPublishStage:
-    !Equals [!Ref PublishToSAR, 'true']
-  UseGitHub:
-    !Equals [!Ref SourceCodeProvider, 'GitHub']
+  HasTestStage: !Not [!Equals [!Ref IntegTestRoleName, ""]]
+  HasDeployStage: !Not [!Equals [!Ref DeployRoleName, ""]]
+  HasPublishStage: !Equals [!Ref PublishToSAR, "true"]
+  UseGitHub: !Equals [!Ref SourceCodeProvider, "GitHub"]
 
 Rules:
   ValidateGitHub:
-    RuleCondition: !Equals [!Ref SourceCodeProvider, 'GitHub']
+    RuleCondition: !Equals [!Ref SourceCodeProvider, "GitHub"]
     Assertions:
-      - Assert: !Not [!Equals [!Ref GitHubOwner, '']]
+      - Assert: !Not [!Equals [!Ref GitHubOwner, ""]]
         AssertDescription: "GitHubOwner must be specified when SourceCodeProvider is GitHub"
-      - Assert: !Not [!Equals [!Ref GitHubRepo, '']]
+      - Assert: !Not [!Equals [!Ref GitHubRepo, ""]]
         AssertDescription: "GitHubRepo must be specified when SourceCodeProvider is GitHub"
-      - Assert: !Not [!Equals [!Ref GitHubBranch, '']]
+      - Assert: !Not [!Equals [!Ref GitHubBranch, ""]]
         AssertDescription: "GitHubBranch must be specified when SourceCodeProvider is GitHub"
 
 Resources:
   Artifacts:
+    Type: AWS::S3::Bucket
     Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
       LifecycleConfiguration:
         Rules:
           - ExpirationInDays: 30
             Status: Enabled
-    Type: AWS::S3::Bucket
   ArtifactsPolicy:
     Condition: HasPublishStage
-    Type: 'AWS::S3::BucketPolicy'
+    Type: "AWS::S3::BucketPolicy"
     Properties:
       Bucket:
         Ref: Artifacts
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
-          - Action:
+          - Effect: Deny
+            Principal: "*"
+            Action:
+              - s3:*
+            Resource:
+              - !Sub "arn:aws:s3:::${Artifacts}/*"
+              - !Sub "arn:aws:s3:::${Artifacts}"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+          - Effect: Allow
+            Action:
               - s3:GetObject
-            Effect: Allow
             Principal:
               Service:
-                - 'serverlessrepo.amazonaws.com'
-            Resource:
-              !Sub '${Artifacts.Arn}/*'
+                - "serverlessrepo.amazonaws.com"
+            Resource: !Sub "${Artifacts.Arn}/*"
             Condition:
               StringEquals:
-                "aws:SourceAccount": !Ref "AWS::AccountId"              
+                "aws:SourceAccount": !Ref "AWS::AccountId"
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -156,7 +170,7 @@ Resources:
                 Version: "1"
               Configuration:
                 Owner: !Ref GitHubOwner
-                OAuthToken: !Sub '{{resolve:secretsmanager:${GitHubOAuthTokenSecretId}}}'
+                OAuthToken: !Sub "{{resolve:secretsmanager:${GitHubOAuthTokenSecretId}}}"
                 Repo: !Ref GitHubRepo
                 Branch: !Ref GitHubBranch
                 PollForSourceChanges: false
@@ -185,7 +199,7 @@ Resources:
                   Category: Test
                   Owner: AWS
                   Provider: CodeBuild
-                  Version: '1'
+                  Version: "1"
                 Configuration:
                   ProjectName: !Ref IntegrationTestsProject
                   PrimarySource: SourceArtifact
@@ -202,7 +216,7 @@ Resources:
                   Category: Deploy
                   Owner: AWS
                   Provider: CloudFormation
-                  Version: '1'
+                  Version: "1"
                 InputArtifacts:
                   - Name: BuildArtifact
                 Configuration:
@@ -219,7 +233,7 @@ Resources:
                   Category: Deploy
                   Owner: AWS
                   Provider: CloudFormation
-                  Version: '1'
+                  Version: "1"
                 Configuration:
                   ActionMode: CHANGE_SET_EXECUTE
                   StackName: !Ref DeployStackName
@@ -235,7 +249,7 @@ Resources:
                   Category: Invoke
                   Owner: AWS
                   Provider: Lambda
-                  Version: '1'
+                  Version: "1"
                 Configuration:
                   FunctionName: !GetAtt SARPublishApp.Outputs.ServerlessRepoPublishFunctionName
                 InputArtifacts:
@@ -338,17 +352,17 @@ Resources:
         Type: CODEPIPELINE
       Environment:
         ComputeType: !Ref ComputeType
-        Image: 'aws/codebuild/standard:5.0'
+        Image: "aws/codebuild/standard:5.0"
         Type: !Ref EnvironmentType
         EnvironmentVariables:
           - Name: PACKAGE_BUCKET
             Value: !Ref Artifacts
   GitHubWebhook:
-    Type: 'AWS::CodePipeline::Webhook'
+    Type: "AWS::CodePipeline::Webhook"
     Condition: UseGitHub
     Properties:
       AuthenticationConfiguration:
-        SecretToken: !Sub '{{resolve:secretsmanager:${GitHubOAuthTokenSecretId}}}'
+        SecretToken: !Sub "{{resolve:secretsmanager:${GitHubOAuthTokenSecretId}}}"
       Filters:
         - JsonPath: "$.ref"
           MatchEquals: refs/heads/{Branch}
@@ -369,7 +383,7 @@ Resources:
         Type: CODEPIPELINE
       Environment:
         ComputeType: !Ref ComputeType
-        Image: 'aws/codebuild/standard:5.0'
+        Image: "aws/codebuild/standard:5.0"
         Type: !Ref EnvironmentType
         EnvironmentVariables:
           - Name: PACKAGE_BUCKET
@@ -385,7 +399,7 @@ Resources:
           - !Ref IntegTestRoleName
           - !Ref AWS::NoValue
       PolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Action:
               - logs:CreateLogGroup
@@ -418,7 +432,7 @@ Resources:
             Principal:
               Service:
                 - codebuild.amazonaws.com
-        Version: '2012-10-17'
+        Version: "2012-10-17"
       Path: /service-role/
   DeployStagePolicy:
     Condition: HasDeployStage
@@ -428,7 +442,7 @@ Resources:
       Roles:
         - !Ref DeployRoleName
       PolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Action:
               - s3:GetObject
@@ -437,8 +451,8 @@ Resources:
               - !Sub arn:${AWS::Partition}:s3:::${Artifacts}/*
   SARPublishApp:
     Condition: HasPublishStage
-    Type: 'AWS::Serverless::Application'
+    Type: "AWS::Serverless::Application"
     Properties:
       Location:
-        ApplicationId: 'arn:aws:serverlessrepo:us-east-1:077246666028:applications/aws-serverless-codepipeline-serverlessrepo-publish'
+        ApplicationId: "arn:aws:serverlessrepo:us-east-1:077246666028:applications/aws-serverless-codepipeline-serverlessrepo-publish"
         SemanticVersion: 1.0.1
