@@ -135,6 +135,9 @@ Resources:
                 - 'serverlessrepo.amazonaws.com'
             Resource:
               !Sub '${Artifacts.Arn}/*'
+            Condition:
+              StringEquals:
+                "aws:SourceAccount": !Ref "AWS::AccountId"              
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
