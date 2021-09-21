@@ -31,7 +31,7 @@ Resources:
     Properties:
       Location:
         ApplicationId: arn:aws:serverlessrepo:us-east-1:170889777468:applications/serverless-benthos
-        SemanticVersion: 3.54.1
+        SemanticVersion: 3.55.0
       Parameters:
         BenthosConfig: !Ref BenthosConfig
 
